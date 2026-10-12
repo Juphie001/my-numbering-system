@@ -1,16 +1,8 @@
 {
-  "name": "FORM NUMBERING SYSTEM",
-  "short_name": "FORRY",
-  "description": "FORRY Form Stamping System",
-  "start_url": "./index.html",
+  "name": "Form Numbering System",
+  "short_name": "Form Numbering",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#c00",
-  "icons": [
-    {
-      "src": "icon.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
+  "theme_color": "#0d47a1",
+  "start_url": "./"
 }
