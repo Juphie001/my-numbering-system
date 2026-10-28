@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Form Numbering System</title>
+<title>FORRY - Real Paper</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0d47a1">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -17,23 +17,20 @@ input,select{padding:10px;width:100%;max-width:380px;border:1.5px solid #ccc;bor
 button{padding:11px 20px;border:none;border-radius:6px;font-weight:bold;cursor:pointer;margin:4px;font-size:13px}
 .btn-red{background:#c00;color:white}.btn-blue{background:#0d47a1;color:white;display:none}.btn-green{background:#2e7d32;color:white}
 .pdf-page{position:relative;box-shadow:none;margin:0 auto;display:block;max-width:800px;background:white}
-.form-stamp-on-form{position:absolute;top:15px;left:15px;border:2.5px solid #000;background:white;padding:6px 14px;text-align:center;z-index:100;min-width:135px}
+.form-stamp-on-form{position:absolute;top:15px;left:15px;border:2.5px solid #000;background:white;padding:6px 12px;text-align:center;z-index:100;min-width:175px}
 .num{font-size:15px;font-weight:bold;color:#000}
-.word-content{position:relative;padding:70px 30px 30px;font-family:'Times New Roman',serif;font-size:12pt;line-height:1.5;color:#000}
+.date-time{font-size:8px;color:#000;margin-top:2px;font-weight:bold}
+.word-content{position:relative;padding:85px 30px 30px;font-family:'Times New Roman',serif;font-size:12pt;line-height:1.5;color:#000}
 .status{font-weight:bold;margin-top:10px;padding:10px;border-radius:6px;display:none;font-size:13px}
 @page{margin:0;size:A4}
 @media print{.no-print{display:none!important} body{max-width:100%;margin:0;padding:0} #fileContent{margin:0;padding:10mm}}
 </style>
-<script>
-if ('serviceWorker' in navigator) { window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js'); }); }
-</script>
 </head>
 <body>
 <div class="no-print">
-<h2>Form Numbering System</h2>
+<h2>FORRY Form Numbering</h2>
 <label>Form Type:</label>
-<select id="formType"><option value="registration" selected>Registration - REG</option><option value="loan_application">Loan Application - LOAN</option></select>
-<label>Your Name:</label><input type="text" id="userName" placeholder="e.g. Helen">
+<select id="formType" onchange="updateStampLabel()"><option value="registration" selected>Registration - REG</option><option value="loan_application">Loan Application - LOAN</option></select>
 <label>Upload Form:</label><input type="file" id="fileInput" accept=".docx,.pdf,.jpg,.jpeg,.png">
 <button class="btn-green" onclick="loadFile()">STEP 1: LOAD FORM</button>
 <button class="btn-red" onclick="previewNumber()">STEP 2: PREVIEW STAMP</button>
@@ -44,19 +41,52 @@ if ('serviceWorker' in navigator) { window.addEventListener('load', ()=>{ naviga
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzGpcA4jW_UsKWSjzaWDR1d8v3DNsQ1WQtlECvSSkZg8bMh83QOEw3_kN8iLOLhZImy/exec";
-let currentFile=null;let lastNumber="____-____";let previewNumberVal="";let lastName="";let fileLoaded = false;
+let currentFile=null;let lastNumber="____-____";let previewNumberVal="";let fileLoaded = false;
+const FIXED_USER = "Forry Staff";
+
 function showStatus(msg,color){const s=document.getElementById('status');s.style.display='block';s.textContent=msg;s.style.background=color==='green'?'#e8f5e9':color==='blue'?'#e3f2fd':'#ffebee';s.style.color=color==='green'?'#2e7d32':color==='blue'?'#0d47a1':'#c00';}
+function getDateTime(){ const now=new Date(); return now.toLocaleDateString()+' '+now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
+function getLabelText(){ const t=document.getElementById('formType').value; if(t==='loan_application') return 'Forry Application Form No.'; return 'Forry Registration Form No.'; }
+function updateStampLabel(){ const el=document.getElementById('formLabel'); if(el) el.textContent=getLabelText(); }
+
 async function loadFile(){
   const file=document.getElementById('fileInput').files[0]; if(!file){alert("Select file");return;}
   currentFile=file; fileLoaded=true; const ext=file.name.split('.').pop().toLowerCase(); const display=document.getElementById('fileContent'); display.innerHTML=`<div style="padding:20px;text-align:center;color:#0d47a1">Loading...</div>`;
+  const label=getLabelText(); const dt=getDateTime();
   try{
-    if(ext==='pdf'){const r=new FileReader();r.onload=async function(){const pdf=await pdfjsLib.getDocument(new Uint8Array(this.result)).promise;display.innerHTML="";for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i);const vp=page.getViewport({scale:1.8});const c=document.createElement('canvas');const ctx=c.getContext('2d');c.width=vp.width;c.height=vp.height;c.style.width="100%";await page.render({canvasContext:ctx,viewport:vp}).promise;const w=document.createElement('div');w.className='pdf-page';if(i===1){const st=document.createElement('div');st.className='form-stamp-on-form';st.id='formStamp';st.innerHTML=`<div style="font-size:8px">Form No.</div><div class="num" id="formNoDisplay">${lastNumber}</div><div style="font-size:6px" id="printInfo"></div>`;if(lastNumber==="____-____")st.style.display='none';w.appendChild(st);}w.appendChild(c);display.appendChild(w);}showStatus("Loaded","green");};r.readAsArrayBuffer(file);}
-    else if(ext==='docx'){const r=new FileReader();r.onload=function(e){mammoth.convertToHtml({arrayBuffer:e.target.result}).then(function(res){display.innerHTML=`<div class="pdf-page"><div class="form-stamp-on-form" id="formStamp" style="display:${lastNumber==='____-____'?'none':'block'}"><div style="font-size:8px">Form No.</div><div class="num" id="formNoDisplay">${lastNumber}</div></div><div class="word-content">${res.value}</div></div>`;showStatus("Loaded","green");});};r.readAsArrayBuffer(file);}
-    else{const url=URL.createObjectURL(file);display.innerHTML=`<div class="pdf-page"><div class="form-stamp-on-form" id="formStamp" style="display:${lastNumber==='____-____'?'none':'block'}"><div style="font-size:8px">Form No.</div><div class="num" id="formNoDisplay">${lastNumber}</div></div><img src="${url}" style="width:100%"></div>`;showStatus("Loaded","green");}
+    if(ext==='pdf'){const r=new FileReader();r.onload=async function(){const pdf=await pdfjsLib.getDocument(new Uint8Array(this.result)).promise;display.innerHTML="";for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i);const vp=page.getViewport({scale:1.8});const c=document.createElement('canvas');const ctx=c.getContext('2d');c.width=vp.width;c.height=vp.height;c.style.width="100%";await page.render({canvasContext:ctx,viewport:vp}).promise;const w=document.createElement('div');w.className='pdf-page';if(i===1){const st=document.createElement('div');st.className='form-stamp-on-form';st.id='formStamp';st.innerHTML=`<div style="font-size:7px;font-weight:bold" id="formLabel">${label}</div><div class="num" id="formNoDisplay">${lastNumber}</div><div class="date-time" id="printInfo">${dt}</div>`;if(lastNumber==="____-____")st.style.display='none';w.appendChild(st);}w.appendChild(c);display.appendChild(w);}showStatus("Loaded","green");};r.readAsArrayBuffer(file);}
+    else if(ext==='docx'){const r=new FileReader();r.onload=function(e){mammoth.convertToHtml({arrayBuffer:e.target.result}).then(function(res){display.innerHTML=`<div class="pdf-page"><div class="form-stamp-on-form" id="formStamp" style="display:${lastNumber==='____-____'?'none':'block'}"><div style="font-size:7px;font-weight:bold" id="formLabel">${label}</div><div class="num" id="formNoDisplay">${lastNumber}</div><div class="date-time" id="printInfo">${dt}</div></div><div class="word-content">${res.value}</div></div>`;showStatus("Loaded","green");});};r.readAsArrayBuffer(file);}
+    else{const url=URL.createObjectURL(file);display.innerHTML=`<div class="pdf-page"><div class="form-stamp-on-form" id="formStamp" style="display:${lastNumber==='____-____'?'none':'block'}"><div style="font-size:7px;font-weight:bold" id="formLabel">${label}</div><div class="num" id="formNoDisplay">${lastNumber}</div><div class="date-time" id="printInfo">${dt}</div></div><img src="${url}" style="width:100%"></div>`;showStatus("Loaded","green");}
   }catch(err){showStatus("Failed: "+err.message,"red");}
 }
-async function previewNumber(){const name=document.getElementById('userName').value.trim();const formType=document.getElementById('formType').value;if(!name){alert("Enter name");return;}if(!currentFile){alert("Load first");return;}lastName=name;showStatus("Checking...","blue");try{const url=SCRIPT_URL+"?action=preview&formType="+encodeURIComponent(formType)+"&user="+encodeURIComponent(name)+"&t="+Date.now();const res=await fetch(url);const data=JSON.parse(await res.text());if(!data.success) throw new Error(data.message);previewNumberVal=data.realFormatted;lastNumber=data.realFormatted;const stamp=document.getElementById('formStamp');const nd=document.getElementById('formNoDisplay');const info=document.getElementById('printInfo');if(stamp&&nd){stamp.style.display='block';nd.textContent=data.realFormatted+" PREVIEW";if(info)info.textContent="By "+name+" - PREVIEW";stamp.style.borderStyle="dashed";stamp.style.borderColor="#c00";}showStatus("PREVIEW: "+data.realFormatted,"blue");document.getElementById('printBtn').style.display='inline-block';}catch(e){showStatus(e.message,"red");}}
-async function confirmAndPrint(){const name=document.getElementById('userName').value.trim();const formType=document.getElementById('formType').value;const btn=document.getElementById('printBtn');if(!previewNumberVal){alert("Preview first");return;}btn.disabled=true;btn.textContent="CONFIRMING...";try{const url=SCRIPT_URL+"?action=confirm&formType="+encodeURIComponent(formType)+"&user="+encodeURIComponent(name)+"&t="+Date.now();const res=await fetch(url);const data=JSON.parse(await res.text());if(!data.success) throw new Error(data.message);lastNumber=data.formatted;previewNumberVal="";const nd=document.getElementById('formNoDisplay');const info=document.getElementById('printInfo');const stamp=document.getElementById('formStamp');if(nd){nd.textContent=data.formatted;stamp.style.borderStyle="solid";stamp.style.borderColor="#000";if(info)info.textContent="By "+name+" - "+new Date().toLocaleDateString();}showStatus("CONFIRMED "+data.formatted,"green");setTimeout(()=>{window.print();btn.disabled=false;btn.textContent="STEP 3: PRINT & CONFIRM";btn.style.display='none';},800);}catch(e){showStatus("Failed: "+e.message,"red");btn.disabled=false;}}
+async function previewNumber(){
+  const formType=document.getElementById('formType').value;
+  if(!currentFile){alert("Load first");return;}
+  showStatus("Checking...","blue");
+  try{
+    const url=SCRIPT_URL+"?action=preview&formType="+encodeURIComponent(formType)+"&user="+encodeURIComponent(FIXED_USER)+"&t="+Date.now();
+    const res=await fetch(url);const data=JSON.parse(await res.text());if(!data.success) throw new Error(data.message);
+    previewNumberVal=data.realFormatted;lastNumber=data.realFormatted;
+    const stamp=document.getElementById('formStamp');const nd=document.getElementById('formNoDisplay');const info=document.getElementById('printInfo');
+    if(stamp&&nd){stamp.style.display='block';nd.textContent=data.realFormatted+" PREVIEW";if(info)info.textContent=getDateTime()+" - PREVIEW";stamp.style.borderStyle="dashed";stamp.style.borderColor="#c00"; updateStampLabel();}
+    showStatus("PREVIEW: "+data.realFormatted,"blue");document.getElementById('printBtn').style.display='inline-block';
+  }catch(e){showStatus(e.message,"red");}
+}
+async function confirmAndPrint(){
+  const formType=document.getElementById('formType').value;
+  const btn=document.getElementById('printBtn');
+  if(!previewNumberVal){alert("Preview first");return;}
+  btn.disabled=true;btn.textContent="CONFIRMING...";
+  try{
+    const url=SCRIPT_URL+"?action=confirm&formType="+encodeURIComponent(formType)+"&user="+encodeURIComponent(FIXED_USER)+"&t="+Date.now();
+    const res=await fetch(url);const data=JSON.parse(await res.text());if(!data.success) throw new Error(data.message);
+    lastNumber=data.formatted;previewNumberVal="";
+    const nd=document.getElementById('formNoDisplay');const info=document.getElementById('printInfo');const stamp=document.getElementById('formStamp');
+    if(nd){nd.textContent=data.formatted;stamp.style.borderStyle="solid";stamp.style.borderColor="#000";if(info)info.textContent=getDateTime(); updateStampLabel();}
+    showStatus("CONFIRMED "+data.formatted,"green");
+    setTimeout(()=>{window.print();btn.disabled=false;btn.textContent="STEP 3: PRINT & CONFIRM";btn.style.display='none';},800);
+  }catch(e){showStatus("Failed: "+e.message,"red");btn.disabled=false;}
+}
 </script>
 </body>
 </html>
